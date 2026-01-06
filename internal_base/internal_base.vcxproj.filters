@@ -18,6 +18,12 @@
     <ClCompile Include="dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="core\dx11\dx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="core\math\math.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="ext\imgui\imgui.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -27,7 +33,7 @@
     <ClCompile Include="ext\imgui\imgui_draw.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ext\imgui\imgui_impl_dx11.cpp">
+    <ClCompile Include="ext\imgui\imgui_impl_dx9.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ext\imgui\imgui_impl_win32.cpp">
@@ -39,21 +45,21 @@
     <ClCompile Include="ext\imgui\imgui_widgets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="core\dx11\dx.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="core\math\math.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="core\dx11\dx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="core\math\math.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="ext\imgui\imconfig.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ext\imgui\imgui.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ext\imgui\imgui_impl_dx11.h">
+    <ClInclude Include="ext\imgui\imgui_impl_dx9.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ext\imgui\imgui_impl_win32.h">
@@ -69,12 +75,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ext\imgui\imstb_truetype.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="core\dx11\dx.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="core\math\math.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

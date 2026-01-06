@@ -126,7 +126,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <Version>
       </Version>
-      <AdditionalDependencies>d3d11.lib;d3dcompiler.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;d3dcompiler.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -136,7 +136,7 @@
     <ClCompile Include="ext\imgui\imgui.cpp" />
     <ClCompile Include="ext\imgui\imgui_demo.cpp" />
     <ClCompile Include="ext\imgui\imgui_draw.cpp" />
-    <ClCompile Include="ext\imgui\imgui_impl_dx11.cpp" />
+    <ClCompile Include="ext\imgui\imgui_impl_dx9.cpp" />
     <ClCompile Include="ext\imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="ext\imgui\imgui_tables.cpp" />
     <ClCompile Include="ext\imgui\imgui_widgets.cpp" />
@@ -146,7 +146,7 @@
     <ClInclude Include="core\math\math.h" />
     <ClInclude Include="ext\imgui\imconfig.h" />
     <ClInclude Include="ext\imgui\imgui.h" />
-    <ClInclude Include="ext\imgui\imgui_impl_dx11.h" />
+    <ClInclude Include="ext\imgui\imgui_impl_dx9.h" />
     <ClInclude Include="ext\imgui\imgui_impl_win32.h" />
     <ClInclude Include="ext\imgui\imgui_internal.h" />
     <ClInclude Include="ext\imgui\imstb_rectpack.h" />

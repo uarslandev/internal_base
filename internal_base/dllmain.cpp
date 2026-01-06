@@ -3,32 +3,66 @@
 #include <iostream>
 #include <thread>
 
-#include "ext/imgui/imgui.h"
+#include "ext/imgui/imgui_impl_dx9.h"
 #include "ext/imgui/imgui_impl_win32.h"
-#include "ext/imgui/imgui_impl_dx11.h"
-#include <d3d11.h>
+#include <d3d9.h>
 #include <tchar.h>
 
 // Data
-static ID3D11Device* g_pd3dDevice = nullptr;
-static ID3D11DeviceContext* g_pd3dDeviceContext = nullptr;
-static IDXGISwapChain* g_pSwapChain = nullptr;
-static bool                     g_SwapChainOccluded = false;
+static LPDIRECT3D9              g_pD3D = nullptr;
+static LPDIRECT3DDEVICE9        g_pd3dDevice = nullptr;
+static bool                     g_DeviceLost = false;
 static UINT                     g_ResizeWidth = 0, g_ResizeHeight = 0;
-static ID3D11RenderTargetView* g_mainRenderTargetView = nullptr;
+static D3DPRESENT_PARAMETERS    g_d3dpp = {};
 
 // Forward declarations of helper functions
 bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();
-void CreateRenderTarget();
-void CleanupRenderTarget();
+void ResetDevice();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-// Main code
-DWORD WINAPI ImGuiThread(LPVOID lpParam)
-{
-    HMODULE hModule = (HMODULE)lpParam;
+bool g_ShowOverlay = false;
 
+
+void toggleVisibility(HWND hwnd) {
+    if (GetAsyncKeyState(VK_INSERT) & 1)
+    {
+        g_ShowOverlay = !g_ShowOverlay;
+
+        LONG ex = GetWindowLong(hwnd, GWL_EXSTYLE);
+
+        if (g_ShowOverlay)
+        {
+            ex &= ~WS_EX_TRANSPARENT;
+            SetWindowLong(hwnd, GWL_EXSTYLE, ex);
+
+            ShowWindow(hwnd, SW_SHOW);
+            SetForegroundWindow(hwnd);
+            SetFocus(hwnd);
+        }
+        else
+        {
+            ex |= WS_EX_TRANSPARENT;
+            SetWindowLong(hwnd, GWL_EXSTYLE, ex);
+
+            ShowWindow(hwnd, SW_HIDE);
+        }
+    }
+
+}
+
+RECT GetWindowRect(LPCSTR lpClassName) {
+    RECT rect = { NULL };
+    HWND hwnd = FindWindowA(NULL, lpClassName);
+    if (hwnd) {
+        GetWindowRect(hwnd, &rect);
+        return rect;
+    }
+}
+
+// Main code
+DWORD WINAPI GUI(HMODULE hModule, int, char**)
+{
     // Make process DPI aware and obtain main monitor scale
     ImGui_ImplWin32_EnableDpiAwareness();
     float main_scale = ImGui_ImplWin32_GetDpiScaleForMonitor(::MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY));
@@ -36,7 +70,10 @@ DWORD WINAPI ImGuiThread(LPVOID lpParam)
     // Create application window
     WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Example", nullptr };
     ::RegisterClassExW(&wc);
-    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Dear ImGui DirectX11 Example", WS_OVERLAPPEDWINDOW, 100, 100, (int)(1280 * main_scale), (int)(800 * main_scale), nullptr, nullptr, wc.hInstance, nullptr);
+    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Dear ImGui DirectX9 Example", WS_OVERLAPPEDWINDOW, 100, 100, (int)(1280 * main_scale), (int)(800 * main_scale), nullptr, nullptr, wc.hInstance, nullptr);
+    SetWindowLong(hwnd, GWL_EXSTYLE,
+        WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_NOACTIVATE);
+    SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_COLORKEY);
 
     // Initialize Direct3D
     if (!CreateDeviceD3D(hwnd))
@@ -68,7 +105,7 @@ DWORD WINAPI ImGuiThread(LPVOID lpParam)
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(hwnd);
-    ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
+    ImGui_ImplDX9_Init(g_pd3dDevice);
 
     // Load Fonts
     // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -89,16 +126,26 @@ DWORD WINAPI ImGuiThread(LPVOID lpParam)
     // Our state
     bool show_demo_window = true;
     bool show_another_window = false;
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
 
     // Main loop
     bool done = false;
+
+    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+
     while (!done)
     {
-            if (GetAsyncKeyState(VK_END) & 0x8000)
-                break;
+        if (GetAsyncKeyState(VK_END) & 0x8000)
+            break;
 
-            Sleep(10); // avoid 100% CPU
+        Sleep(10); // avoid 100% CPU
+
+        LPCSTR gameName = "Counter-Strike 2";
+        RECT gamePositions = GetWindowRect(gameName);
+        MoveWindow(hwnd, gamePositions.left, gamePositions.top, gamePositions.right - gamePositions.left, gamePositions.bottom - gamePositions.top, true);
+
+        toggleVisibility(hwnd);
+
         // Poll and handle messages (inputs, window resize, etc.)
         // See the WndProc() function below for our to dispatch events to the Win32 backend.
         MSG msg;
@@ -112,25 +159,31 @@ DWORD WINAPI ImGuiThread(LPVOID lpParam)
         if (done)
             break;
 
-        // Handle window being minimized or screen locked
-        if (g_SwapChainOccluded && g_pSwapChain->Present(0, DXGI_PRESENT_TEST) == DXGI_STATUS_OCCLUDED)
+        // Handle lost D3D9 device
+        if (g_DeviceLost)
         {
-            ::Sleep(10);
-            continue;
+            HRESULT hr = g_pd3dDevice->TestCooperativeLevel();
+            if (hr == D3DERR_DEVICELOST)
+            {
+                ::Sleep(10);
+                continue;
+            }
+            if (hr == D3DERR_DEVICENOTRESET)
+                ResetDevice();
+            g_DeviceLost = false;
         }
-        g_SwapChainOccluded = false;
 
         // Handle window resize (we don't resize directly in the WM_SIZE handler)
         if (g_ResizeWidth != 0 && g_ResizeHeight != 0)
         {
-            CleanupRenderTarget();
-            g_pSwapChain->ResizeBuffers(0, g_ResizeWidth, g_ResizeHeight, DXGI_FORMAT_UNKNOWN, 0);
+            g_d3dpp.BackBufferWidth = g_ResizeWidth;
+            g_d3dpp.BackBufferHeight = g_ResizeHeight;
             g_ResizeWidth = g_ResizeHeight = 0;
-            CreateRenderTarget();
+            ResetDevice();
         }
 
         // Start the Dear ImGui frame
-        ImGui_ImplDX11_NewFrame();
+        ImGui_ImplDX9_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
@@ -172,84 +225,81 @@ DWORD WINAPI ImGuiThread(LPVOID lpParam)
         }
 
         // Rendering
-        ImGui::Render();
-        const float clear_color_with_alpha[4] = { clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w };
-        g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, nullptr);
-        g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView, clear_color_with_alpha);
-        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
-        // Present
-        HRESULT hr = g_pSwapChain->Present(1, 0);   // Present with vsync
-        //HRESULT hr = g_pSwapChain->Present(0, 0); // Present without vsync
-        g_SwapChainOccluded = (hr == DXGI_STATUS_OCCLUDED);
+        ImGui::EndFrame();
+        g_pd3dDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
+        g_pd3dDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+        g_pd3dDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+        D3DCOLOR clear_col_dx = D3DCOLOR_RGBA((int)(clear_color.x * clear_color.w * 0.0f), (int)(clear_color.y * clear_color.w * 0.0f), (int)(clear_color.z * clear_color.w * 0.0f), (int)(clear_color.w * 0.0f));
+        g_pd3dDevice->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, clear_col_dx, 1.0f, 0);
+        if (g_pd3dDevice->BeginScene() >= 0)
+        {
+            ImGui::Render();
+            ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+            g_pd3dDevice->EndScene();
+        }
+        HRESULT result = g_pd3dDevice->Present(nullptr, nullptr, nullptr, nullptr);
+        if (result == D3DERR_DEVICELOST)
+            g_DeviceLost = true;
     }
 
-    ImGui_ImplDX11_Shutdown();
+    // Cleanup
+    ImGui_ImplDX9_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
     CleanupDeviceD3D();
     ::DestroyWindow(hwnd);
     ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     FreeLibraryAndExitThread(hModule, 0);
+
+    return 0;
 }
 
+// Helper functions
 
 bool CreateDeviceD3D(HWND hWnd)
 {
-    DXGI_SWAP_CHAIN_DESC sd;
-    ZeroMemory(&sd, sizeof(sd));
-    sd.BufferCount = 2;
-    sd.BufferDesc.Width = 0;
-    sd.BufferDesc.Height = 0;
-    sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    sd.BufferDesc.RefreshRate.Numerator = 60;
-    sd.BufferDesc.RefreshRate.Denominator = 1;
-    sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    sd.OutputWindow = hWnd;
-    sd.SampleDesc.Count = 1;
-    sd.SampleDesc.Quality = 0;
-    sd.Windowed = TRUE;
-    sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-
-    UINT createDeviceFlags = 0;
-    D3D_FEATURE_LEVEL featureLevel;
-    const D3D_FEATURE_LEVEL featureLevelArray[2] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0, };
-    HRESULT res = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain, &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
-    if (res == DXGI_ERROR_UNSUPPORTED)
-        res = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, createDeviceFlags, featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain, &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
-    if (res != S_OK)
+    if ((g_pD3D = Direct3DCreate9(D3D_SDK_VERSION)) == nullptr)
         return false;
 
-    CreateRenderTarget();
+    // Create the D3DDevice
+    ZeroMemory(&g_d3dpp, sizeof(g_d3dpp));
+    g_d3dpp.Windowed = TRUE;
+    g_d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+    g_d3dpp.BackBufferFormat = D3DFMT_UNKNOWN; // Need to use an explicit format with alpha if needing per-pixel alpha composition.
+    g_d3dpp.EnableAutoDepthStencil = TRUE;
+    g_d3dpp.AutoDepthStencilFormat = D3DFMT_D16;
+    g_d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;           // Present with vsync
+    //g_d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;   // Present without vsync, maximum unthrottled framerate
+    if (g_pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &g_d3dpp, &g_pd3dDevice) < 0)
+        return false;
+
     return true;
 }
 
 void CleanupDeviceD3D()
 {
-    CleanupRenderTarget();
-    if (g_pSwapChain) { g_pSwapChain->Release(); g_pSwapChain = nullptr; }
-    if (g_pd3dDeviceContext) { g_pd3dDeviceContext->Release(); g_pd3dDeviceContext = nullptr; }
     if (g_pd3dDevice) { g_pd3dDevice->Release(); g_pd3dDevice = nullptr; }
+    if (g_pD3D) { g_pD3D->Release(); g_pD3D = nullptr; }
 }
 
-void CreateRenderTarget()
+void ResetDevice()
 {
-    ID3D11Texture2D* pBackBuffer;
-    g_pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
-    g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_mainRenderTargetView);
-    pBackBuffer->Release();
+    ImGui_ImplDX9_InvalidateDeviceObjects();
+    HRESULT hr = g_pd3dDevice->Reset(&g_d3dpp);
+    if (hr == D3DERR_INVALIDCALL)
+        IM_ASSERT(0);
+    ImGui_ImplDX9_CreateDeviceObjects();
 }
 
-void CleanupRenderTarget()
-{
-    if (g_mainRenderTargetView) { g_mainRenderTargetView->Release(); g_mainRenderTargetView = nullptr; }
-}
-
+// Forward declare message handler from imgui_impl_win32.cpp
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+// Win32 message handler
+// You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
+// - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
+// - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
+// Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
@@ -273,7 +323,6 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     }
     return ::DefWindowProcW(hWnd, msg, wParam, lParam);
 }
-
 
 
 DWORD WINAPI ConsoleThread(LPVOID lpParam) {
@@ -311,7 +360,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 	{
 	case DLL_PROCESS_ATTACH:
 		//CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)ConsoleThread, hModule, 0, nullptr));
-        CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)ImGuiThread, hModule, 0, nullptr));
+        CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)GUI, hModule, 0, nullptr));
 		break;
 	case DLL_PROCESS_DETACH:
 		break;
