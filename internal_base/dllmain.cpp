@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <thread>
-#include "./core/dx11/dx.h"
+#include "dx11/dx.h"
 
 DWORD WINAPI ConsoleThread(LPVOID lpParam) {
     HMODULE hModule = (HMODULE)lpParam;

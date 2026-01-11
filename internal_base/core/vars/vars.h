@@ -1,7 +1,7 @@
 #pragma once
 #include <windows.h>
 #include <iostream>
-#include "../core/reclass/reclass.h"
+#include "reclass/reclass.h"
 
 extern DWORD64 skyrimModuleBase;
 extern DWORD64 localPlayerBaseAddress;
