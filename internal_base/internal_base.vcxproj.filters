@@ -45,6 +45,12 @@
     <ClCompile Include="ext\imgui\imgui_widgets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="core\mem\mem.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="core\vars\vars.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="core\dx11\dx.h">
@@ -75,6 +81,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ext\imgui\imstb_truetype.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="core\mem\mem.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="core\vars\vars.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="core\reclass\reclass.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -29,28 +29,31 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>Intel C++ Compiler 19.2</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>Intel C++ Compiler 19.2</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>Intel C++ Compiler 19.2</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+    <InterproceduralOptimization>true</InterproceduralOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>Intel C++ Compiler 19.2</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
+    <BasePlatformToolset>ClangCL</BasePlatformToolset>
+    <InterproceduralOptimization>true</InterproceduralOptimization>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -70,6 +73,9 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>C:\Users\user\source\repos\internal_base\internal_base\ext;C:\Users\user\source\repos\internal_base\internal_base\core;$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -102,6 +108,9 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <UseMSVC>true</UseMSVC>
+      <InterproceduralOptimization>MultiFile</InterproceduralOptimization>
+      <OptimizeForWindowsApplication>true</OptimizeForWindowsApplication>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -116,8 +125,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
-      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <LanguageStandard>Default</LanguageStandard>
+      <LanguageStandard_C>Default</LanguageStandard_C>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalIncludeDirectories>C:\Users\user\source\repos\internal_base\internal_base\core;C:\Users\user\source\repos\internal_base\internal_base\ext;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -132,6 +141,8 @@
   <ItemGroup>
     <ClCompile Include="core\dx11\dx.cpp" />
     <ClCompile Include="core\math\math.cpp" />
+    <ClCompile Include="core\mem\mem.cpp" />
+    <ClCompile Include="core\vars\vars.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="ext\imgui\imgui.cpp" />
     <ClCompile Include="ext\imgui\imgui_demo.cpp" />
@@ -144,6 +155,9 @@
   <ItemGroup>
     <ClInclude Include="core\dx11\dx.h" />
     <ClInclude Include="core\math\math.h" />
+    <ClInclude Include="core\mem\mem.h" />
+    <ClInclude Include="core\reclass\reclass.h" />
+    <ClInclude Include="core\vars\vars.h" />
     <ClInclude Include="ext\imgui\imconfig.h" />
     <ClInclude Include="ext\imgui\imgui.h" />
     <ClInclude Include="ext\imgui\imgui_impl_dx9.h" />
