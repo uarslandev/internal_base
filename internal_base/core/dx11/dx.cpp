@@ -2,6 +2,7 @@
 #include "imgui/imgui_impl_win32.h"
 #include <d3d9.h>
 #include <tchar.h>
+#include "vars/vars.h"
 
 // Data
 static LPDIRECT3D9              g_pD3D = nullptr;
@@ -16,7 +17,13 @@ void CleanupDeviceD3D();
 void ResetDevice();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+extern LPCSTR gameName = "Skyrim Special Edition";
+
 bool g_ShowOverlay = false;
+bool unlimitedMana = false;
+int playerHealth = 100;
+int playerMana = 100;
+int playerStamina = 100;
 
 
 void toggleVisibility(HWND hwnd) {
@@ -43,7 +50,6 @@ void toggleVisibility(HWND hwnd) {
             ShowWindow(hwnd, SW_HIDE);
         }
     }
-
 }
 
 RECT GetWindowRect(LPCSTR lpClassName) {
@@ -59,7 +65,6 @@ RECT GetWindowRect(LPCSTR lpClassName) {
 // Main code
 DWORD WINAPI GUI(HMODULE hModule, int, char**)
 {
-    LPCSTR gameName = "Skyrim Special Edition";
     // Make process DPI aware and obtain main monitor scale
     ImGui_ImplWin32_EnableDpiAwareness();
     float main_scale = ImGui_ImplWin32_GetDpiScaleForMonitor(::MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY));
@@ -121,8 +126,7 @@ DWORD WINAPI GUI(HMODULE hModule, int, char**)
     //IM_ASSERT(font != nullptr);
 
     // Our state
-    bool show_demo_window = true;
-    bool show_another_window = false;
+    bool mainMenu = true;
     ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
 
     // Main loop
@@ -135,11 +139,8 @@ DWORD WINAPI GUI(HMODULE hModule, int, char**)
         if (GetAsyncKeyState(VK_END) & 0x8000)
             break;
 
-        Sleep(10); // avoid 100% CPU
-
         RECT gamePositions = GetWindowRect(gameName);
         MoveWindow(hwnd, gamePositions.left, gamePositions.top, gamePositions.right - gamePositions.left, gamePositions.bottom - gamePositions.top, true);
-
         toggleVisibility(hwnd);
 
         // Poll and handle messages (inputs, window resize, etc.)
@@ -184,19 +185,15 @@ DWORD WINAPI GUI(HMODULE hModule, int, char**)
         ImGui::NewFrame();
 
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        if (show_demo_window)
-            ImGui::ShowDemoWindow(&show_demo_window);
-
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
+        if (mainMenu)
         {
             static float f = 0.0f;
             static int counter = 0;
 
-            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+            ImGui::Begin("Welcome to Internal Base!");                          // Create a window called "Hello, world!" and append into it.
 
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &show_another_window);
+            ImGui::Text("Unlimited Mana");               // Display some text (you can use a format strings too)
+            ImGui::Checkbox("Unlimited Mana", &unlimitedMana);      // Edit bools storing our window open/close state
 
             ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
             ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
@@ -206,19 +203,19 @@ DWORD WINAPI GUI(HMODULE hModule, int, char**)
             ImGui::SameLine();
             ImGui::Text("counter = %d", counter);
 
+            ImGui::Text("Health: %d", playerHealth);
+            ImGui::Text("Mana: %d", playerMana);
+            ImGui::Text("Stamina: %d", playerStamina);
+
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
             ImGui::End();
         }
 
-        // 3. Show another simple window.
-        if (show_another_window)
-        {
-            ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            ImGui::Text("Hello from another window!");
-            if (ImGui::Button("Close Me"))
-                show_another_window = false;
-            ImGui::End();
-        }
+        if (localPlayerPtr) {
+            //godModeEnabled ? localPlayerPtr->Health = 0.0f : NULL;
+            unlimitedMana ? localPlayerPtr->Mana = 0.0f : NULL;
+            //unlimitedStaminaEnabled ? localPlayerPtr->Stamina = 0.0f : NULL;
+		}
 
         // Rendering
         ImGui::EndFrame();
@@ -236,6 +233,7 @@ DWORD WINAPI GUI(HMODULE hModule, int, char**)
         HRESULT result = g_pd3dDevice->Present(nullptr, nullptr, nullptr, nullptr);
         if (result == D3DERR_DEVICELOST)
             g_DeviceLost = true;
+        Sleep(10);
     }
 
     // Cleanup

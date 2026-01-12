@@ -45,6 +45,7 @@
     <PlatformToolset>Intel C++ Compiler 19.2</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <InterproceduralOptimization>true</InterproceduralOptimization>
+    <BasePlatformToolset>v142</BasePlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
@@ -108,7 +109,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>Default</ConformanceMode>
-      <UseMSVC>true</UseMSVC>
+      <UseMSVC>false</UseMSVC>
       <InterproceduralOptimization>MultiFile</InterproceduralOptimization>
       <OptimizeForWindowsApplication>true</OptimizeForWindowsApplication>
       <AdditionalIncludeDirectories>$(ProjectDir)\core;$(ProjectDir)\ext;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
