@@ -111,7 +111,7 @@
       <UseMSVC>true</UseMSVC>
       <InterproceduralOptimization>MultiFile</InterproceduralOptimization>
       <OptimizeForWindowsApplication>true</OptimizeForWindowsApplication>
-      <AdditionalIncludeDirectories>C:\Users\user\source\repos\internal_base\internal_base\ext;C:\Users\user\source\repos\internal_base\internal_base\core;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)\core;$(ProjectDir)\ext;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
