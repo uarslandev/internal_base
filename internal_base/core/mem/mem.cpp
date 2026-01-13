@@ -143,7 +143,7 @@ bool Hook64(void* toHook, void* hk_func, int len) {
     return true;
 }
 
-DWORD64 jmpBackAddress = skyrimModuleBase + 0x74452C + 15;
+DWORD64 jmpBackAddress = moduleBase + 0x74452C + 15;
 DWORD64 g_raxAddress = 0;
 
 void __declspec(naked) hk_coords() {

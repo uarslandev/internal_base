@@ -51,6 +51,9 @@
     <ClCompile Include="core\vars\vars.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="core\hooks\hooks.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="core\dx11\dx.h">
@@ -90,6 +93,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="core\reclass\reclass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="core\hooks\hooks.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
