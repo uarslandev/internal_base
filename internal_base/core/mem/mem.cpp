@@ -143,17 +143,11 @@ bool Hook64(void* toHook, void* hk_func, int len) {
     return true;
 }
 
-DWORD64 jmpBackAddress = moduleBase + 0x74452C + 15;
-DWORD64 g_raxAddress = 0;
-
-void __declspec(naked) hk_coords() {
-
-    __asm {
-        movss xmm5, [rax + 0x54] // Original instruction 1
-        movss xmm4, [rax + 0x58] // Original instruction 2
-        movss xmm3, [rax + 0x5C] // Original instruction 3
-        mov g_raxAddress, rax // Store the RAX value in the global variable
-
-        jmp[jmpBackAddress]
-    }
+bool Unhook64(void* toUnhook, const std::vector<unsigned char>& originalBytes) {
+    DWORD curProtection;
+    VirtualProtect(toUnhook, originalBytes.size(), PAGE_EXECUTE_READWRITE, &curProtection);
+    memcpy(toUnhook, originalBytes.data(), originalBytes.size());
+    DWORD temp;
+    VirtualProtect(toUnhook, originalBytes.size(), curProtection, &temp);
+    return true;
 }
