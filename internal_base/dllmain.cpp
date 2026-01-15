@@ -3,21 +3,24 @@
 #include <iostream>
 #include <thread>
 #include "dx11/dx.h"
+#include "hooks/hooks.h"
 
-DWORD WINAPI ConsoleThread(LPVOID lpParam) {
-    HMODULE hModule = (HMODULE)lpParam;
+#include "vars/vars.h"
+#include "mem/mem.h"
+
+DWORD WINAPI ConsoleThread(HMODULE hModule) {
 	AllocConsole();
 	FILE * fDummy;
 
 	freopen_s(&fDummy, "CONOUT$", "w", stdout);
-	freopen_s(&fDummy, "CONOUT$", "w", stderr);
-	freopen_s(&fDummy, "CONIN$", "r", stdin);
+	//freopen_s(&fDummy, "CONOUT$", "w", stderr);
+	//freopen_s(&fDummy, "CONIN$", "r", stdin);
 
-	std::cout << ("Console allocated.\n") << std::endl;
+	std::cout << "Console allocated." << std::endl;
 
 	while (true)
 	{
-		if (GetAsyncKeyState(VK_END) & 0x8000)
+		if (GetAsyncKeyState(VK_END))
 			break;
 
 		Sleep(10); // avoid 100% CPU
@@ -38,8 +41,9 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 	switch (ul_reason_for_call)
 	{
 	case DLL_PROCESS_ATTACH:
-		//CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)ConsoleThread, hModule, 0, nullptr));
-        CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)GUI, hModule, 0, nullptr));
+		CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)ConsoleThread, hModule, 0, nullptr));
+		//CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)GUI, hModule, 0, nullptr));
+		//CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)InitiateHooks, hModule, 0, nullptr));
 		break;
 	case DLL_PROCESS_DETACH:
 		break;

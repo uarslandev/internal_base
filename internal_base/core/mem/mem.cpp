@@ -72,6 +72,55 @@ uintptr_t sigScan(uintptr_t baseAddress, size_t size, const std::string& signatu
     return 0; // Not found
 }
 
+std::vector<int> IdaToBytes(const std::string& pattern) {
+    std::cout << pattern << std::endl;
+
+    std::vector<int> bytes;
+    std::stringstream ss(pattern);
+    std::string word;
+    while (ss >> word) {
+        if (word == "?" || word == "??") {
+            bytes.push_back(-1);
+        }
+        else {
+            int byte = std::stoi(word, nullptr, 16);
+            bytes.push_back(byte);
+        }
+    }
+
+    for (const auto& byte : bytes) {
+        std::cout << std::hex << byte << " ";
+    }
+
+    return bytes;
+}
+
+uintptr_t SigScan(uintptr_t module, size_t size, const std::string& pattern) {
+    if (module == 0 || size == 0 || pattern == "") {
+        return 0;
+    }
+    std::vector<int> bytes = IdaToBytes(pattern);
+
+    for (size_t i = 0; i < size - bytes.size(); i++) {
+        bool found = true;
+        for (size_t j = 0; j < bytes.size(); j++) {
+            if (bytes[j] != -1) {
+                uint8_t byte = *(uint8_t*)(module + i + j);
+                if (byte != (uint8_t)bytes[j]) {
+                    found = false;
+                    break;
+                }
+            }
+        }
+        if (found) {
+            return module + i;
+        }
+    }
+
+
+    return 0;
+}
+
 void PlaceJMP32(BYTE* address, DWORD destination, DWORD length) {
     DWORD oldProtect, backup, relAddr;
 
