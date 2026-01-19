@@ -16,16 +16,18 @@ DWORD WINAPI ConsoleThread(HMODULE hModule) {
 	//freopen_s(&fDummy, "CONOUT$", "w", stderr);
 	//freopen_s(&fDummy, "CONIN$", "r", stdin);
 
-	std::cout << "Console allocated." << std::endl;
+	std::cout << "Internal Base loaded!" << std::endl;
+
+	InitiateHooks(hModule);
 
 	while (true)
 	{
 		if (GetAsyncKeyState(VK_END))
 			break;
-
 		Sleep(10); // avoid 100% CPU
 	}
 
+	//RestoreHooks(hModule);
 	fclose(fDummy);
 	FreeConsole();
 	FreeLibraryAndExitThread(hModule, 0);

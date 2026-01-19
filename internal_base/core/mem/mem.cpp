@@ -19,7 +19,6 @@ uintptr_t getModuleBaseAddress(const std::string& moduleName) {
     return reinterpret_cast<uintptr_t>(hModule);
 }
 
-// To get the size of a module:
 size_t getModuleSize(uintptr_t baseAddress, const std::string& moduleName) {
     HMODULE hModule = GetModuleHandleA(moduleName.c_str());
     if (hModule) {
@@ -49,31 +48,30 @@ std::string byteArrayToHexString(const uint8_t* data, size_t size) {
     return ss.str();
 }
 
-uintptr_t sigScan(uintptr_t baseAddress, size_t size, const std::string& signature, const std::string& mask) {
-    if (signature.empty() || mask.empty() || signature.length() != mask.length()) {
-        return 0; // Invalid input
-    }
-
-    std::vector<uint8_t> signatureBytes = hexStringToBytes(signature);
-    const uint8_t* data = reinterpret_cast<const uint8_t*>(baseAddress);
-
-    for (size_t i = 0; i < size - signatureBytes.size(); ++i) {
-        bool found = true;
-        for (size_t j = 0; j < signatureBytes.size(); ++j) {
-            if (mask[j] != '?' && data[i + j] != signatureBytes[j]) {
-                found = false;
-                break;
-            }
-        }
-        if (found) {
-            return baseAddress + i;
-        }
-    }
-    return 0; // Not found
-}
+//uintptr_t sigScan(uintptr_t baseAddress, size_t size, const std::string& signature, const std::string& mask) {
+//    if (signature.empty() || mask.empty() || signature.length() != mask.length()) {
+//        return 0; // Invalid input
+//    }
+//
+//    std::vector<uint8_t> signatureBytes = hexStringToBytes(signature);
+//    const uint8_t* data = reinterpret_cast<const uint8_t*>(baseAddress);
+//
+//    for (size_t i = 0; i < size - signatureBytes.size(); ++i) {
+//        bool found = true;
+//        for (size_t j = 0; j < signatureBytes.size(); ++j) {
+//            if (mask[j] != '?' && data[i + j] != signatureBytes[j]) {
+//                found = false;
+//                break;
+//            }
+//        }
+//        if (found) {
+//            return baseAddress + i;
+//        }
+//    }
+//    return 0; // Not found
+//}
 
 std::vector<int> IdaToBytes(const std::string& pattern) {
-    std::cout << pattern << std::endl;
 
     std::vector<int> bytes;
     std::stringstream ss(pattern);
@@ -88,20 +86,15 @@ std::vector<int> IdaToBytes(const std::string& pattern) {
         }
     }
 
-    for (const auto& byte : bytes) {
-        std::cout << std::hex << byte << " ";
-    }
-
     return bytes;
 }
 
 uintptr_t SigScan(uintptr_t module, size_t size, const std::string& pattern) {
-    if (module == 0 || size == 0 || pattern == "") {
-        return 0;
-    }
+    if (module == 0 || size == 0 || pattern == "") return 0;
+    
     std::vector<int> bytes = IdaToBytes(pattern);
 
-    for (size_t i = 0; i < size - bytes.size(); i++) {
+    for (size_t i = 0; i <= size - bytes.size(); i++) {
         bool found = true;
         for (size_t j = 0; j < bytes.size(); j++) {
             if (bytes[j] != -1) {
@@ -116,7 +109,6 @@ uintptr_t SigScan(uintptr_t module, size_t size, const std::string& pattern) {
             return module + i;
         }
     }
-
 
     return 0;
 }
@@ -168,9 +160,7 @@ void PlaceJMP64(BYTE* address, void* destination, DWORD length) {
 
 
 bool Hook64(void* toHook, void* hk_func, int len) {
-    if (len < 13) {
-        return false;
-    }
+    if (len < 12) return false; 
 
     DWORD curProtection;
     VirtualProtect(toHook, len, PAGE_EXECUTE_READWRITE, &curProtection);
@@ -178,15 +168,14 @@ bool Hook64(void* toHook, void* hk_func, int len) {
     memset(toHook, 0x90, len);
 
     unsigned char patch[] = {
-        0x50,                               // push rax (1 byte)
-        0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, // movabs rax, [immediate 64-bit address] (2 bytes opcode + 8 bytes immediate = 10 bytes)
-        0x00, 0x00, 0x00, 0x00,
-        0xFF, 0xE0,                         // jmp rax (2 bytes)
-        0x90, 0x90                          // NOP, NOP (2 bytes for padding to 15)
-    }; // Total size of patch array is 1 + 10 + 2 + 2 = 15 bytes
+        0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // movabs rax, [64-bit addr]
+        0xFF, 0xE0                                                 // jmp rax
+    };
 
-    *(DWORD64*)&patch[3] = (DWORD64)hk_func;
-    memcpy((void*)toHook, patch, sizeof(patch));
+    *(DWORD64*)&patch[2] = (DWORD64)hk_func;
+
+    memcpy(toHook, patch, sizeof(patch));
+
     DWORD temp;
     VirtualProtect(toHook, len, curProtection, &temp);
     return true;

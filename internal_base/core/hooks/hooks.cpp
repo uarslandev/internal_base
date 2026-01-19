@@ -3,44 +3,44 @@
 #include "vars/vars.h"
 #include "mem/mem.h"
 
-DWORD64 jmpBackAddress = moduleBase + 17;
+DWORD64 jmpBackAddress = 0x7FF71130A9FB + 13;
 DWORD64 entityList = 0;
 
-//void __declspec(naked) hk_coords() {
-//
-//    __asm {
-//        movss xmm5, [rax + 0x54] // Original instruction 1
-//        movss xmm4, [rax + 0x58] // Original instruction 2
-//        movss xmm3, [rax + 0x5C] // Original instruction 3
-//        mov g_raxAddress, rax // Store the RAX value in the global variable
-//
-//        jmp[jmpBackAddress]
-//    }
-//}
 void __declspec(naked) hk_coords() {
-
     __asm {
-        mov [rbx + 0x54], eax
-        mov eax, [r14 + 4h]
-        mov [rbx + 0x58], eax
-        mov eax, [r14 + 8h]
-        mov [rbx + 0x5C], eax
-        mov entityList, rbx 
+        mov eax, [r14]
+        mov[rbx + 0x54], eax
+        mov eax, [r14 + 0x4]
+        mov[rbx + 0x58], eax
+
+        mov entityList, rbx
 
         jmp[jmpBackAddress]
     }
 }
 
-//89 43 54 41 8B 46 04 89 43 58 41 8B 46 08 89 43 5C
 DWORD WINAPI InitiateHooks(HMODULE hModule) {
     //hook coords
-    uintptr_t entityList = sigScan(
-        moduleBase,
-        sizeof(moduleBase),
-        "894354418B4604894358418B460889435C",
-        "xxxxxxxxxxxxxxxxx"
-    );
+    std::string entityListPattern = "41 8B 06 89 43 54 41 8B 46 04 89 43 58 41 8B 46 08 89 43 5C 48 8B 43 68";
+    uintptr_t entityAddress = SigScan(moduleBase, sizeof(moduleBase), entityListPattern);
+    std::vector<int> entityListBytes = IdaToBytes(entityListPattern);
 
-	Hook64((void*)(moduleBase + entityList), hk_coords, 17);
+	//jmpBackAddress = entityAddress + 13;
+
+    Hook64((void*)(entityAddress), hk_coords, 13);
+    while (true) {
+        std::cout << std::hex << entityList << std::endl;
+    }
+    return 0;
+}
+
+DWORD WINAPI RestoreHooks(HMODULE hModule) {
+    std::vector<unsigned char> originalBytes = {
+        0x41, 0x8B, 0x06,        // mov eax, [r14]
+        0x89, 0x43, 0x54,        // mov [rbx+54h], eax
+        0x41, 0x8B, 0x46, 0x04,  // mov eax, [r14+4]
+        0x89, 0x43, 0x58        // mov [rbx+58h], eax
+    };
+
     return 0;
 }
