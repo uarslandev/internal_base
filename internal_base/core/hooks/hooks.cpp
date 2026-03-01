@@ -3,15 +3,15 @@
 #include "vars/vars.h"
 #include "mem/mem.h"
 
-DWORD64 jmpBackAddress = 0x7FF71130A9FB + 13;
+//DWORD64 jmpBackAddress = 0x7FF766F3A9FB + 0x13; // 0x7FF71130AA0E
+DWORD64 jmpBackAddress; // 
 DWORD64 entityList = 0;
 
 void __declspec(naked) hk_coords() {
     __asm {
-        mov eax, [r14]
-        mov[rbx + 0x54], eax
-        mov eax, [r14 + 0x4]
-        mov[rbx + 0x58], eax
+        movss xmm2, [rbx + 54]
+        movss xmm0, [rbx + 58]
+        subss xmm0,[rdi+58]
 
         mov entityList, rbx
 
@@ -21,26 +21,32 @@ void __declspec(naked) hk_coords() {
 
 DWORD WINAPI InitiateHooks(HMODULE hModule) {
     //hook coords
-    std::string entityListPattern = "41 8B 06 89 43 54 41 8B 46 04 89 43 58 41 8B 46 08 89 43 5C 48 8B 43 68";
+    std::string entityListPattern = "F3 0F 10 53 ?? F3 0F 10 43 ?? F3 0F 5C 47 ??";
     uintptr_t entityAddress = SigScan(moduleBase, sizeof(moduleBase), entityListPattern);
     std::vector<int> entityListBytes = IdaToBytes(entityListPattern);
 
-	//jmpBackAddress = entityAddress + 13;
+	jmpBackAddress = entityAddress + 15;
 
-    Hook64((void*)(entityAddress), hk_coords, 13);
-    while (true) {
-        std::cout << std::hex << entityList << std::endl;
-    }
+    Hook64((void*)(entityAddress), hk_coords, 15);
+
+    //while (true) {
+    //    //std::cout << std::hex << entityList << std::endl;
+    //    std::cout << std::hex << entityAddress << std::endl;
+    //}
     return 0;
 }
 
 DWORD WINAPI RestoreHooks(HMODULE hModule) {
     std::vector<unsigned char> originalBytes = {
-        0x41, 0x8B, 0x06,        // mov eax, [r14]
-        0x89, 0x43, 0x54,        // mov [rbx+54h], eax
-        0x41, 0x8B, 0x46, 0x04,  // mov eax, [r14+4]
-        0x89, 0x43, 0x58        // mov [rbx+58h], eax
+        0xF3, 0xF, 0x10, 0x53, 0x54,        // mov eax, [r14]
+        0xF3, 0xF, 0x10, 0x43, 0x58,        // mov eax, [r14]
+        0xF3, 0xF, 0x5C, 0x47, 0x58        // mov eax, [r14]
     };
+    std::string entityListPattern = "F3 0F 10 53 ?? F3 0F 10 43 ?? F3 0F 5C 47 ??";
+    uintptr_t entityAddress = SigScan(moduleBase, sizeof(moduleBase), entityListPattern);
+    std::vector<int> entityListBytes = IdaToBytes(entityListPattern);
+
+	Unhook64((void*)(entityAddress), originalBytes);
 
     return 0;
 }
