@@ -214,7 +214,7 @@ DWORD WINAPI GUI(HMODULE hModule, int, char**)
 
         if (localPlayerPtr) {
             //godModeEnabled ? localPlayerPtr->Health = 0.0f : NULL;
-            unlimitedMana ? localPlayerPtr->Mana = 0.0f : NULL;
+            //unlimitedMana ? localPlayerPtr->Mana = 0.0f : NULL;
             //unlimitedStaminaEnabled ? localPlayerPtr->Stamina = 0.0f : NULL;
 		}
 

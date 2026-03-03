@@ -4,3 +4,6 @@
 
 DWORD WINAPI InitiateHooks(HMODULE hModule);
 DWORD WINAPI RestoreHooks(HMODULE hModule);
+
+void UpdateEntityList();
+void PrintEntityList();

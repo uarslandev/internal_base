@@ -183,9 +183,9 @@ bool Hook64(void* toHook, void* hk_func, int len) {
 
 bool Unhook64(void* toUnhook, const std::vector<unsigned char>& originalBytes) {
     DWORD curProtection;
-    VirtualProtect(toUnhook, originalBytes.size(), PAGE_EXECUTE_READWRITE, &curProtection);
-    memcpy(toUnhook, originalBytes.data(), originalBytes.size());
+    VirtualProtect(toUnhook, 15, PAGE_EXECUTE_READWRITE, &curProtection);
+    memcpy(toUnhook, originalBytes.data(), 15);
     DWORD temp;
-    VirtualProtect(toUnhook, originalBytes.size(), curProtection, &temp);
+    VirtualProtect(toUnhook, 15, curProtection, &temp);
     return true;
 }

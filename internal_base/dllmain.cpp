@@ -14,21 +14,30 @@ DWORD WINAPI ConsoleThread(HMODULE hModule) {
 
         // Reopen stdout, stderr, and stdin to the new console
         freopen_s(&fDummy, "CONOUT$", "w", stdout);
-        freopen_s(&fDummy, "CONOUT$", "w", stderr);
-        freopen_s(&fDummy, "CONIN$", "r", stdin);
+        //freopen_s(&fDummy, "CONOUT$", "w", stderr);
+        //freopen_s(&fDummy, "CONIN$", "r", stdin);
 
         std::cout << "Internal Base loaded!" << std::endl;
 
-         InitiateHooks(hModule); // Re-enable when hooks are ready
+        InitiateHooks(hModule); // Re-enable when hooks are ready
     }
 
     // Main loop
+    DWORD lastPrint = GetTickCount();
     while (true)
     {
+        UpdateEntityList();
+
+        DWORD now = GetTickCount();
+        if (now - lastPrint >= 500) { // print twice per second
+            PrintEntityList();
+            lastPrint = now;
+        }
+
         if (GetAsyncKeyState(VK_END))
             break;
 
-        Sleep(10); // avoid 100% CPU
+        Sleep(10);
     }
 
     // Cleanup and Unload
@@ -36,8 +45,8 @@ DWORD WINAPI ConsoleThread(HMODULE hModule) {
 
     // Proper stream cleanup
     if (stdout) fclose(stdout);
-    if (stderr) fclose(stderr);
-    if (stdin)  fclose(stdin);
+    //if (stderr) fclose(stderr);
+    //if (stdin)  fclose(stdin);
 
     FreeConsole();
     FreeLibraryAndExitThread(hModule, 0);
