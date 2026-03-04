@@ -116,3 +116,16 @@ DWORD WINAPI RestoreHooks(HMODULE hModule) {
     }
     return 0;
 }
+
+Player* GetEntityByIndex(int index) {
+    if (index < 0 || index >= 255) return nullptr;
+    return ents[index];
+}
+
+int GetTrackedEntityCount() {
+    int count = 0;
+    for (int i = 0; i < 255; i++) {
+        if (ents[i] != nullptr) count++;
+    }
+    return count;
+}

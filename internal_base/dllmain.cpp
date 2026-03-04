@@ -64,10 +64,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
         //MessageBoxA(nullptr, "DLL_PROCESS_ATTACH called", "Debug", MB_OK);
         // Launch the console/main logic thread
         CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)ConsoleThread, hModule, 0, nullptr));
-
-        // Debug check to see if DllMain is even being hit
-
-        // CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)GUI, hModule, 0, nullptr));
+        CloseHandle(CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)GUI, hModule, 0, nullptr));
         break;
 
     case DLL_PROCESS_DETACH:

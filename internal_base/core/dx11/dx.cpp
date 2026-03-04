@@ -3,6 +3,8 @@
 #include <d3d9.h>
 #include <tchar.h>
 #include "vars/vars.h"
+#include <cstdint>
+#include "hooks/hooks.h"
 
 // Data
 static LPDIRECT3D9              g_pD3D = nullptr;
@@ -208,6 +210,13 @@ DWORD WINAPI GUI(HMODULE hModule, int, char**)
             ImGui::Text("Stamina: %d", playerStamina);
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+
+            static bool drawSnaplines = true;
+            static unsigned long long viewProjAddress = 0;
+
+            ImGui::Checkbox("Draw Snaplines", &drawSnaplines);
+            ImGui::InputScalar("ViewProj Matrix Address", ImGuiDataType_U64, &viewProjAddress, nullptr, nullptr, "%llX", ImGuiInputTextFlags_CharsHexadecimal);
+            ImGui::Text("Tracked entities: %d", GetTrackedEntityCount());
 
             ImGui::End();
         }
