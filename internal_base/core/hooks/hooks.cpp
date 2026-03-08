@@ -3,31 +3,21 @@
 #include "vars/vars.h"
 #include "mem/mem.h"
 
-DWORD64 jmpBackAddress;
-DWORD64 entityList;
+// These must have C linkage to match the assembly EXTERN declarations
+extern "C" {
+    DWORD64 jmpBackAddress = 0;
+    DWORD64 entityList = 0;
+    volatile LONG hookHits = 0;
+}
+
 Player* ents[255]{};
 
 // Store original bytes when hooking
 std::vector<unsigned char> savedOriginalBytes;
 uintptr_t hookedAddress = 0;
 
-volatile LONG hookHits = 0;
-
-void __declspec(naked) hk_coords() {
-    __asm {
-        movss xmm2, [rbx + 0x54]
-        movss xmm0, [rbx + 0x58]
-        subss xmm0, [rdi + 0x58]
-
-        mov entityList, rbx
-
-        mov eax, hookHits
-        inc eax
-        mov hookHits, eax
-
-        jmp [jmpBackAddress]
-    }
-}
+// Declare the external assembly function
+extern "C" void hk_coords();
 
 static bool TryReadEntityCoords(Player* ent, float& x, float& y, float& z) {
     __try {
