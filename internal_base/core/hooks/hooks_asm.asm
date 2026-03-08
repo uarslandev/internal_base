@@ -1,5 +1,4 @@
 .code
-
 ; External variables - these match C++ global variables
 EXTERN jmpBackAddress:QWORD
 EXTERN entityList:QWORD
@@ -9,38 +8,21 @@ EXTERN hookHits:DWORD
 PUBLIC hk_coords
 
 hk_coords PROC
-    ; Save registers we'll modify
-    push rax
-    push rcx
+    ; Save entity pointer to entityList
+    mov entityList, rbx
     
-    ; Original instructions
-    movss xmm2, DWORD PTR [rbx + 54h]
-    movss xmm0, DWORD PTR [rbx + 58h]
-    subss xmm0, DWORD PTR [rdi + 58h]
+    ; Increment hook counter
+    mov eax, hookHits
+    inc eax
+    mov hookHits, eax
     
-    ; Store rbx value to entityList variable
-    mov rax, OFFSET entityList
-    mov QWORD PTR [rax], rbx
-    
-    ; Increment hookHits
-    mov rax, OFFSET hookHits
-    mov ecx, DWORD PTR [rax]
-    inc ecx
-    mov DWORD PTR [rax], ecx
-    
-    ; Get jump address
-    mov rax, OFFSET jmpBackAddress
-    mov rax, QWORD PTR [rax]
-    
-    ; Restore registers
-    pop rcx
-    pop rax
+    ; Original instructions that were overwritten
+    movss xmm2, dword ptr [rbx + 54h]
+    movss xmm0, dword ptr [rbx + 58h]
+    subss xmm0, dword ptr [rdi + 58h]
     
     ; Jump back to original code
-    jmp rax
-    
-    ; We should never reach here, but MASM likes a ret
-    ret
+    jmp qword ptr [jmpBackAddress]
 hk_coords ENDP
 
 END
