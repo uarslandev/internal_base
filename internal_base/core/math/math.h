@@ -1,19 +1,73 @@
 #pragma once
+#include <cmath>
 
 class Vector2 {
 public:
-	float x, y;
-	Vector2() : x(0), y(0) {}
-	Vector2(float x, float y) : x(x), y(y) {}
+    float x, y;
+    
+    // Constructors
+    Vector2() : x(0.0f), y(0.0f) {}
+    Vector2(float x, float y) : x(x), y(y) {}
+    
+    // Utility methods
+    float Length() const;
+    float LengthSquared() const;
+    float DistanceTo(const Vector2& other) const;
+    Vector2 Normalized() const;
+    
+    // Operators
+    Vector2 operator+(const Vector2& other) const;
+    Vector2 operator-(const Vector2& other) const;
+    Vector2 operator*(float scalar) const;
+    Vector2 operator/(float scalar) const;
+    
+    Vector2& operator+=(const Vector2& other);
+    Vector2& operator-=(const Vector2& other);
+    Vector2& operator*=(float scalar);
+    Vector2& operator/=(float scalar);
+    
+    bool operator==(const Vector2& other) const;
+    bool operator!=(const Vector2& other) const;
+    
+    // Static utility
+    static float Dot(const Vector2& a, const Vector2& b);
 };
 
 class Vector3 {
 public:
-	float x, y, z;
-	Vector3() : x(0), y(0), z(0) {}
-	Vector3(float x, float y, float z) : x(x), y(y), z(z) {}
+    float x, y, z;
+    
+    // Constructors
+    Vector3() : x(0.0f), y(0.0f), z(0.0f) {}
+    Vector3(float x, float y, float z) : x(x), y(y), z(z) {}
+    
+    // Utility methods
+    float Length() const;
+    float LengthSquared() const;
+    float DistanceTo(const Vector3& other) const;
+    Vector3 Normalized() const;
+    
+    // Operators
+    Vector3 operator+(const Vector3& other) const;
+    Vector3 operator-(const Vector3& other) const;
+    Vector3 operator*(float scalar) const;
+    Vector3 operator/(float scalar) const;
+    
+    Vector3& operator+=(const Vector3& other);
+    Vector3& operator-=(const Vector3& other);
+    Vector3& operator*=(float scalar);
+    Vector3& operator/=(float scalar);
+    
+    bool operator==(const Vector3& other) const;
+    bool operator!=(const Vector3& other) const;
+    
+    // Static utility
+    static float Dot(const Vector3& a, const Vector3& b);
+    static Vector3 Cross(const Vector3& a, const Vector3& b);
 };
 
-// Convert 3D world coordinates to 2D screen coordinates
-// Returns true if the point is visible (in front of camera)
-bool WorldToScreen(const Vector3& worldPos, Vector2& screenPos, const float* viewMatrix, int screenWidth, int screenHeight);
+// World to screen transformation
+namespace MathUtils {
+    bool WorldToScreen(const Vector3& worldPos, Vector2& screenPos, 
+                      const float* viewMatrix, int screenWidth, int screenHeight);
+}

@@ -3,6 +3,8 @@
 #include "ImGuiManager.h"
 #include "ESPRenderer.h"
 #include "OverlayWindow.h"
+#include "MenuRenderer.h"
+#include "app/AppState.h"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_win32.h"
 #include "vars/vars.h"
@@ -11,116 +13,7 @@
 
 namespace {
     constexpr LPCSTR GAME_NAME = "Skyrim Special Edition";
-    constexpr uintptr_t VIEW_MATRIX_ADDRESS = 0x7FF72116C3E8;
-}
-
-// Application state
-struct AppState {
-    bool showMenu = true;
-    bool unlimitedMana = false;
-    unsigned long long viewProjAddress = VIEW_MATRIX_ADDRESS;
-    int playerHealth = 100;
-    int playerMana = 100;
-    int playerStamina = 100;
-    float sliderValue = 0.0f;
-    int counter = 0;
-    ImVec4 clearColor = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
-};
-
-void RenderESPMenu(ESPConfig& config) {
-    if (ImGui::CollapsingHeader("ESP Settings")) {
-        bool nameEnabled = config.IsFeatureEnabled(ESPFeature::Name);
-        bool snaplineEnabled = config.IsFeatureEnabled(ESPFeature::Snapline);
-        bool box2DEnabled = config.IsFeatureEnabled(ESPFeature::Box2D);
-        bool box3DEnabled = config.IsFeatureEnabled(ESPFeature::Box3D);
-        bool skeletonEnabled = config.IsFeatureEnabled(ESPFeature::Skeleton);
-        bool healthBarEnabled = config.IsFeatureEnabled(ESPFeature::HealthBar);
-        bool distanceEnabled = config.IsFeatureEnabled(ESPFeature::Distance);
-
-        if (ImGui::Checkbox("Show Names", &nameEnabled)) {
-            config.ToggleFeature(ESPFeature::Name);
-        }
-        
-        if (ImGui::Checkbox("Show Snaplines", &snaplineEnabled)) {
-            config.ToggleFeature(ESPFeature::Snapline);
-        }
-        
-        if (ImGui::Checkbox("Show 2D Box", &box2DEnabled)) {
-            config.ToggleFeature(ESPFeature::Box2D);
-        }
-        
-        if (ImGui::Checkbox("Show 3D Box", &box3DEnabled)) {
-            config.ToggleFeature(ESPFeature::Box3D);
-        }
-        
-        if (ImGui::Checkbox("Show Skeleton", &skeletonEnabled)) {
-            config.ToggleFeature(ESPFeature::Skeleton);
-        }
-        
-        if (ImGui::Checkbox("Show Health Bar", &healthBarEnabled)) {
-            config.ToggleFeature(ESPFeature::HealthBar);
-        }
-        
-        if (ImGui::Checkbox("Show Distance", &distanceEnabled)) {
-            config.ToggleFeature(ESPFeature::Distance);
-        }
-
-        ImGui::Separator();
-        ImGui::Text("ESP Customization");
-        
-        ImGui::ColorEdit4("Name Color", (float*)&config.nameColor);
-        ImGui::ColorEdit4("Snapline Color", (float*)&config.snaplineColor);
-        ImGui::ColorEdit4("Box Color", (float*)&config.boxColor);
-        ImGui::ColorEdit4("Skeleton Color", (float*)&config.skeletonColor);
-        
-        ImGui::SliderFloat("Box Width", &config.boxWidth, 20.0f, 100.0f);
-        ImGui::SliderFloat("Box Height", &config.boxHeight, 40.0f, 150.0f);
-        ImGui::SliderFloat("Line Thickness", &config.lineThickness, 0.5f, 5.0f);
-    }
-}
-
-void RenderMenu(AppState& state, ESPConfig& espConfig, const ImGuiIO& io) {
-    if (!state.showMenu) return;
-
-    ImGui::Begin("Welcome to Internal Base!");
-
-    if (ImGui::CollapsingHeader("Cheats")) {
-        ImGui::Text("Unlimited Mana");
-        ImGui::Checkbox("Unlimited Mana", &state.unlimitedMana);
-
-        ImGui::SliderFloat("float", &state.sliderValue, 0.0f, 1.0f);
-        ImGui::ColorEdit3("clear color", (float*)&state.clearColor);
-
-        if (ImGui::Button("Button"))
-            state.counter++;
-        ImGui::SameLine();
-        ImGui::Text("counter = %d", state.counter);
-
-        ImGui::Text("Health: %d", state.playerHealth);
-        ImGui::Text("Mana: %d", state.playerMana);
-        ImGui::Text("Stamina: %d", state.playerStamina);
-    }
-
-    RenderESPMenu(espConfig);
-
-    if (ImGui::CollapsingHeader("Info")) {
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
-            1000.0f / io.Framerate, io.Framerate);
-        
-        ImGui::InputScalar("ViewProj Matrix Address", ImGuiDataType_U64,
-            &state.viewProjAddress, nullptr, nullptr, "%llX",
-            ImGuiInputTextFlags_CharsHexadecimal);
-        ImGui::Text("Tracked entities: %d", GetTrackedEntityCount());
-    }
-
-    ImGui::End();
-}
-
-void ApplyGameCheats(AppState& state) {
-    if (!localPlayerPtr) return;
-
-    // Uncomment when implemented:
-    // if (state.unlimitedMana) localPlayerPtr->Mana = 100.0f;
+    constexpr uintptr_t DEFAULT_VIEW_MATRIX_ADDRESS = 0x7FF72116C3E8;
 }
 
 DWORD WINAPI GUI(HMODULE hModule, int, char**) {
@@ -153,11 +46,13 @@ DWORD WINAPI GUI(HMODULE hModule, int, char**) {
         return 1;
     }
 
-    // Initialize ESP renderer
+    // Initialize renderers
     ESPRenderer espRenderer;
+    MenuRenderer menuRenderer;
 
     // Application state
     AppState appState;
+    appState.viewProjAddress = DEFAULT_VIEW_MATRIX_ADDRESS;
 
     // Main loop
     bool running = true;
@@ -167,7 +62,7 @@ DWORD WINAPI GUI(HMODULE hModule, int, char**) {
             break;
         }
 
-        // Update overlay position
+        // Update overlay position and visibility
         overlayWindow.UpdatePosition(GAME_NAME);
         overlayWindow.ToggleVisibility();
 
@@ -185,26 +80,30 @@ DWORD WINAPI GUI(HMODULE hModule, int, char**) {
         // Handle device loss
         d3dManager.HandleDeviceLoss();
 
-        // Begin frame
+        // Begin ImGui frame
         imguiManager.NewFrame();
 
         // Get screen dimensions
         ImGuiIO& io = ImGui::GetIO();
-        espRenderer.SetScreenDimensions((int)io.DisplaySize.x, (int)io.DisplaySize.y);
-        espRenderer.SetViewMatrix((float*)appState.viewProjAddress);
+        
+        // Update ESP renderer
+        espRenderer.SetScreenDimensions(static_cast<int>(io.DisplaySize.x), 
+                                       static_cast<int>(io.DisplaySize.y));
+        espRenderer.SetViewMatrix(reinterpret_cast<float*>(appState.viewProjAddress));
 
         // Render menu
-        RenderMenu(appState, espRenderer.GetConfig(), io);
+        menuRenderer.Render(appState, espRenderer.GetConfig(), io);
 
         // Render ESP
         espRenderer.RenderESP();
 
         // Apply cheats
-        ApplyGameCheats(appState);
+        appState.ApplyCheats();
 
         // End frame and render
         ImGui::EndFrame();
 
+        // DirectX rendering
         LPDIRECT3DDEVICE9 device = d3dManager.GetDevice();
         device->SetRenderState(D3DRS_ZENABLE, FALSE);
         device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);

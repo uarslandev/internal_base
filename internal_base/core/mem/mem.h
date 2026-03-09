@@ -1,28 +1,51 @@
 #pragma once
 #include <Windows.h>
 #include <string>
-#include <iostream>
-#include <Psapi.h>
-#include <ProcessSnapshot.h>
 #include <vector>
+#include <cstdint>
 
-struct HookInfo {
-    void* toHookAddress;
-    std::vector<unsigned char> originalBytes;
-    DWORD originalProtection;
-    bool isHooked;
-
-    HookInfo() : toHookAddress(nullptr), originalProtection(0), isHooked(false) {}
+class MemoryManager {
+public:
+    // Module operations
+    static uintptr_t GetModuleBaseAddress(const std::string& moduleName);
+    static size_t GetModuleSize(uintptr_t baseAddress, const std::string& moduleName);
+    
+    // Pattern scanning
+    static uintptr_t SigScan(uintptr_t baseAddress, size_t size, const std::string& pattern);
+    static std::vector<uint8_t> IdaToBytes(const std::string& pattern);
+    
+    // Hooking operations
+    static bool Hook64(void* toHook, void* hkFunc, int len);
+    static bool Unhook64(void* toUnhook, const std::vector<unsigned char>& originalBytes);
+    
+private:
+    MemoryManager() = delete; // Static class, no instantiation
+    
+    static std::vector<uint8_t> HexStringToBytes(const std::string& hex);
+    static std::string ByteArrayToHexString(const uint8_t* data, size_t size);
 };
 
+// Legacy function aliases for compatibility
+inline uintptr_t getModuleBaseAddress(const std::string& moduleName) {
+    return MemoryManager::GetModuleBaseAddress(moduleName);
+}
 
-uintptr_t getModuleBaseAddress(const std::string& moduleName);
-size_t getModuleSize(uintptr_t baseAddress, const std::string& moduleName);
-std::string byteArrayToHexString(const uint8_t* data, size_t size);
-//uintptr_t sigScan(uintptr_t baseAddress, size_t size, const std::string& signature, const std::string& mask);
-std::vector<int> IdaToBytes(const std::string& pattern);
-uintptr_t SigScan(uintptr_t module, size_t size, const std::string& pattern);
-void PlaceJMP32(BYTE* address, DWORD destination, DWORD length);
-void PlaceJMP64(BYTE* address, void* destination, DWORD length);
-bool Hook64(void* toHook, void* hk_func, int len);
-bool Unhook64(void* toUnhook, const std::vector<unsigned char>& originalBytes);
+inline size_t getModuleSize(uintptr_t baseAddress, const std::string& moduleName) {
+    return MemoryManager::GetModuleSize(baseAddress, moduleName);
+}
+
+inline uintptr_t SigScan(uintptr_t baseAddress, size_t size, const std::string& pattern) {
+    return MemoryManager::SigScan(baseAddress, size, pattern);
+}
+
+inline std::vector<uint8_t> IdaToBytes(const std::string& pattern) {
+    return MemoryManager::IdaToBytes(pattern);
+}
+
+inline bool Hook64(void* toHook, void* hkFunc, int len) {
+    return MemoryManager::Hook64(toHook, hkFunc, len);
+}
+
+inline bool Unhook64(void* toUnhook, const std::vector<unsigned char>& originalBytes) {
+    return MemoryManager::Unhook64(toUnhook, originalBytes);
+}

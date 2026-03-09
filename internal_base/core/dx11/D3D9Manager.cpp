@@ -1,4 +1,5 @@
 #include "D3D9Manager.h"
+#include "imgui/imgui_impl_dx9.h"
 #include <iostream>
 
 D3D9Manager::D3D9Manager()
@@ -51,10 +52,12 @@ void D3D9Manager::Cleanup() {
 }
 
 void D3D9Manager::ResetDevice() {
+    ImGui_ImplDX9_InvalidateDeviceObjects();
     HRESULT hr = m_pd3dDevice->Reset(&m_d3dpp);
     if (hr == D3DERR_INVALIDCALL) {
         std::cerr << "Device reset failed with D3DERR_INVALIDCALL" << std::endl;
     }
+    ImGui_ImplDX9_CreateDeviceObjects();
 }
 
 void D3D9Manager::HandleDeviceLoss() {

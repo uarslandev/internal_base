@@ -1,8 +1,16 @@
-#include <windows.h>
-#include <iostream>
 #include "vars.h"
 
-extern DWORD64 moduleBase = (DWORD64)GetModuleHandle(L"SkyrimSE.exe");
-extern DWORD64 localPlayerBaseAddress = moduleBase + 0x31874F8;
-extern DWORD64 hookedLocalPlayerBaseAddress = 0;
-extern Player* localPlayerPtr = *(Player**)(localPlayerBaseAddress);
+// Global variable definitions
+DWORD64 moduleBase = 0;
+DWORD64 localPlayerBaseAddress = 0;
+DWORD64 hookedLocalPlayerBaseAddress = 0;
+Player* localPlayerPtr = nullptr;
+
+namespace GameVars {
+    void Initialize() {
+        moduleBase = 0;
+        localPlayerBaseAddress = 0;
+        hookedLocalPlayerBaseAddress = 0;
+        localPlayerPtr = nullptr;
+    }
+}

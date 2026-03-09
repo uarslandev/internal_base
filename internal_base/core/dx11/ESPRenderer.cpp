@@ -1,5 +1,6 @@
 #include "ESPRenderer.h"
 #include "hooks/hooks.h"
+#include "math/math.h"
 #include <cmath>
 #include <string>
 
@@ -44,10 +45,7 @@ bool ESPRenderer::IsValidViewMatrix(float* matrix) {
 }
 
 float ESPRenderer::CalculateDistance(const Vector3& pos1, const Vector3& pos2) {
-    float dx = pos2.x - pos1.x;
-    float dy = pos2.y - pos1.y;
-    float dz = pos2.z - pos1.z;
-    return std::sqrtf(dx * dx + dy * dy + dz * dz);
+    return pos1.DistanceTo(pos2);
 }
 
 void ESPRenderer::DrawName(ImDrawList* drawList, const Vector2& screenPos, const char* name) {
@@ -102,7 +100,7 @@ void ESPRenderer::Draw3DBox(ImDrawList* drawList, const Vector3& worldPos) {
 
     // Convert all corners to screen space
     for (int i = 0; i < 8; i++) {
-        if (!WorldToScreen(corners[i], screenCorners[i], m_viewMatrix, m_screenWidth, m_screenHeight)) {
+        if (!MathUtils::WorldToScreen(corners[i], screenCorners[i], m_viewMatrix, m_screenWidth, m_screenHeight)) {
             allVisible = false;
             break;
         }
@@ -141,7 +139,6 @@ void ESPRenderer::DrawSkeleton(ImDrawList* drawList, const Vector3& worldPos) {
     if (!m_viewMatrix || !IsValidViewMatrix(m_viewMatrix)) return;
 
     // Simplified skeleton (adjust bone positions based on your game's skeleton structure)
-    // This is a placeholder - you'll need actual bone positions from the game
     Vector3 bones[] = {
         { worldPos.x, worldPos.y + 1.7f, worldPos.z },        // Head
         { worldPos.x, worldPos.y + 1.2f, worldPos.z },        // Neck
@@ -168,7 +165,7 @@ void ESPRenderer::DrawSkeleton(ImDrawList* drawList, const Vector3& worldPos) {
     bool boneVisible[10];
 
     for (int i = 0; i < 10; i++) {
-        boneVisible[i] = WorldToScreen(bones[i], screenBones[i], m_viewMatrix, m_screenWidth, m_screenHeight);
+        boneVisible[i] = MathUtils::WorldToScreen(bones[i], screenBones[i], m_viewMatrix, m_screenWidth, m_screenHeight);
     }
 
     for (const auto& connection : connections) {
@@ -254,12 +251,11 @@ void ESPRenderer::RenderESP() {
         Vector3 worldPos(x, y, z);
         Vector2 screenPos;
 
-        if (!WorldToScreen(worldPos, screenPos, m_viewMatrix, m_screenWidth, m_screenHeight)) {
+        if (!MathUtils::WorldToScreen(worldPos, screenPos, m_viewMatrix, m_screenWidth, m_screenHeight)) {
             continue;
         }
 
         // Calculate distance (you'll need local player position)
-        // For now using placeholder
         float distance = 0.0f; // Replace with actual distance calculation
 
         // Draw 3D box (drawn first so it's behind other elements)
