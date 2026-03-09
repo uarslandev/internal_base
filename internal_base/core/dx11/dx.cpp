@@ -223,34 +223,34 @@ DWORD WINAPI GUI(HMODULE hModule, int, char**)
 
         // In your render loop, add this after ImGui::NewFrame():
 
-        ImDrawList* drawList = ImGui::GetBackgroundDrawList();
+   //     ImDrawList* drawList = ImGui::GetBackgroundDrawList();
 
-        // Get view matrix (you'll need to find the correct address for Skyrim SE)
-        uintptr_t viewMatrix = 0x7FF72116C3E8; // Your existing matrix address
-        float Matrix[16];
-        DWORD oldProtect;
-        VirtualProtect((LPVOID)viewMatrix, sizeof(Matrix), PAGE_EXECUTE_READWRITE, &oldProtect);
-        memcpy(Matrix, (PBYTE*)viewMatrix, sizeof(Matrix));
-        VirtualProtect((LPVOID)viewMatrix, sizeof(Matrix), oldProtect, &oldProtect);
-        int screenWidth = gamePositions.right - gamePositions.left;
-        int screenHeight = gamePositions.bottom - gamePositions.top;
+   //     // Get view matrix (you'll need to find the correct address for Skyrim SE)
+   //     uintptr_t viewMatrix = 0x7FF72116C3E8; // Your existing matrix address
+   //     float Matrix[16];
+   //     DWORD oldProtect;
+   //     VirtualProtect((LPVOID)viewMatrix, sizeof(Matrix), PAGE_EXECUTE_READWRITE, &oldProtect);
+   //     memcpy(Matrix, (PBYTE*)viewMatrix, sizeof(Matrix));
+   //     VirtualProtect((LPVOID)viewMatrix, sizeof(Matrix), oldProtect, &oldProtect);
+   //     int screenWidth = gamePositions.right - gamePositions.left;
+   //     int screenHeight = gamePositions.bottom - gamePositions.top;
 
-        // Draw ESP for all tracked entities
-        for (int i = 0; i < 254; i++) {
-			Player* entity = GetEntityByIndex(i);
+   //     // Draw ESP for all tracked entities
+   //     for (int i = 0; i < 254; i++) {
+			//Player* entity = GetEntityByIndex(i);
 
-            if (entity != nullptr) {
-				Vector3 worldPos = entity->coordinates;
-                Vector2 screenPos;
-                if (WorldToScreen(worldPos, screenPos, Matrix, screenWidth, screenHeight)) {
-                    // Draw a box around the entity
-                    drawList->AddRect(ImVec2(screenPos.x - 20, screenPos.y - 20), ImVec2(screenPos.x + 20, screenPos.y + 20), IM_COL32(255, 0, 0, 255));
-                    // Draw a line from the center of the screen to the entity
-                    drawList->AddLine(ImVec2(screenWidth / 2, screenHeight), ImVec2(screenPos.x, screenPos.y), IM_COL32(255, 0, 0, 255));
-                    drawList->AddText(ImVec2(screenPos.x, screenPos.y - 30), IM_COL32(255, 255, 255, 255), "Entity");
-                }
-            }
-        }
+   //         if (entity != nullptr) {
+			//	Vector3 worldPos = entity->coordinates;
+   //             Vector2 screenPos;
+   //             if (WorldToScreen(worldPos, screenPos, Matrix, screenWidth, screenHeight)) {
+   //                 // Draw a box around the entity
+   //                 drawList->AddRect(ImVec2(screenPos.x - 20, screenPos.y - 20), ImVec2(screenPos.x + 20, screenPos.y + 20), IM_COL32(255, 0, 0, 255));
+   //                 // Draw a line from the center of the screen to the entity
+   //                 drawList->AddLine(ImVec2(screenWidth / 2, screenHeight), ImVec2(screenPos.x, screenPos.y), IM_COL32(255, 0, 0, 255));
+   //                 drawList->AddText(ImVec2(screenPos.x, screenPos.y - 30), IM_COL32(255, 255, 255, 255), "Entity");
+   //             }
+   //         }
+   //     }
 
         if (localPlayerPtr) {
             //godModeEnabled ? localPlayerPtr->Health = 0.0f : NULL;
