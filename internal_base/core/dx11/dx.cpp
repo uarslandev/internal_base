@@ -1,360 +1,182 @@
-#include "imgui/imgui_impl_dx9.h"
+#include "dx.h"
+#include "D3D9Manager.h"
+#include "ImGuiManager.h"
+#include "ESPRenderer.h"
+#include "OverlayWindow.h"
+#include "imgui/imgui.h"
 #include "imgui/imgui_impl_win32.h"
-#include <d3d9.h>
-#include <tchar.h>
 #include "vars/vars.h"
-#include <cstdint>
 #include "hooks/hooks.h"
+#include <iostream>
 
-// Data
-static LPDIRECT3D9              g_pD3D = nullptr;
-static LPDIRECT3DDEVICE9        g_pd3dDevice = nullptr;
-static bool                     g_DeviceLost = false;
-static UINT                     g_ResizeWidth = 0, g_ResizeHeight = 0;
-static D3DPRESENT_PARAMETERS    g_d3dpp = {};
-
-// Forward declarations of helper functions
-bool CreateDeviceD3D(HWND hWnd);
-void CleanupDeviceD3D();
-void ResetDevice();
-LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-extern LPCSTR gameName = "Skyrim Special Edition";
-
-bool g_ShowOverlay = false;
-bool unlimitedMana = false;
-int playerHealth = 100;
-int playerMana = 100;
-int playerStamina = 100;
-
-
-void toggleVisibility(HWND hwnd) {
-    if (GetAsyncKeyState(VK_INSERT) & 1)
-    {
-        g_ShowOverlay = !g_ShowOverlay;
-
-        LONG ex = GetWindowLong(hwnd, GWL_EXSTYLE);
-
-        if (g_ShowOverlay)
-        {
-            ex &= ~WS_EX_TRANSPARENT;
-            SetWindowLong(hwnd, GWL_EXSTYLE, ex);
-
-            ShowWindow(hwnd, SW_SHOW);
-            SetForegroundWindow(hwnd);
-            SetFocus(hwnd);
-        }
-        else
-        {
-            ex |= WS_EX_TRANSPARENT;
-            SetWindowLong(hwnd, GWL_EXSTYLE, ex);
-
-            ShowWindow(hwnd, SW_HIDE);
-        }
-    }
+namespace {
+    constexpr LPCSTR GAME_NAME = "Skyrim Special Edition";
+    constexpr float VIEW_MATRIX_ADDRESS = 0x7FF72116C3E8;
 }
 
-RECT GetWindowRect(LPCSTR lpClassName) {
-    RECT rect = { NULL };
-    HWND hwnd = FindWindowA(NULL, lpClassName);
-    if (hwnd) {
-        GetWindowRect(hwnd, &rect);
-        return rect;
-    }
-	return rect;
+// Application state
+struct AppState {
+    bool showMenu = true;
+    bool unlimitedMana = false;
+    bool drawSnaplines = true;
+    unsigned long long viewProjAddress = VIEW_MATRIX_ADDRESS;
+    int playerHealth = 100;
+    int playerMana = 100;
+    int playerStamina = 100;
+    float sliderValue = 0.0f;
+    int counter = 0;
+    ImVec4 clearColor = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+};
+
+void RenderMenu(AppState& state, const ImGuiIO& io) {
+    if (!state.showMenu) return;
+
+    ImGui::Begin("Welcome to Internal Base!");
+
+    ImGui::Text("Unlimited Mana");
+    ImGui::Checkbox("Unlimited Mana", &state.unlimitedMana);
+
+    ImGui::SliderFloat("float", &state.sliderValue, 0.0f, 1.0f);
+    ImGui::ColorEdit3("clear color", (float*)&state.clearColor);
+
+    if (ImGui::Button("Button"))
+        state.counter++;
+    ImGui::SameLine();
+    ImGui::Text("counter = %d", state.counter);
+
+    ImGui::Text("Health: %d", state.playerHealth);
+    ImGui::Text("Mana: %d", state.playerMana);
+    ImGui::Text("Stamina: %d", state.playerStamina);
+
+    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+        1000.0f / io.Framerate, io.Framerate);
+
+    ImGui::Checkbox("Draw Snaplines", &state.drawSnaplines);
+    ImGui::InputScalar("ViewProj Matrix Address", ImGuiDataType_U64,
+        &state.viewProjAddress, nullptr, nullptr, "%llX",
+        ImGuiInputTextFlags_CharsHexadecimal);
+    ImGui::Text("Tracked entities: %d", GetTrackedEntityCount());
+
+    ImGui::End();
 }
 
-// Main code
-DWORD WINAPI GUI(HMODULE hModule, int, char**)
-{
-    // Make process DPI aware and obtain main monitor scale
+void ApplyGameCheats(AppState& state) {
+    if (!localPlayerPtr) return;
+
+    // Uncomment when implemented:
+    // if (state.unlimitedMana) localPlayerPtr->Mana = 100.0f;
+}
+
+DWORD WINAPI GUI(HMODULE hModule, int, char**) {
+    // Initialize DPI awareness
     ImGui_ImplWin32_EnableDpiAwareness();
-    float main_scale = ImGui_ImplWin32_GetDpiScaleForMonitor(::MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY));
+    float dpiScale = ImGui_ImplWin32_GetDpiScaleForMonitor(
+        ::MonitorFromPoint(POINT{ 0, 0 }, MONITOR_DEFAULTTOPRIMARY));
 
-    // Create application window
-    WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Example", nullptr };
-    ::RegisterClassExW(&wc);
-    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Dear ImGui DirectX9 Example", WS_POPUP, 100, 100, (int)(1280 * main_scale), (int)(800 * main_scale), nullptr, nullptr, wc.hInstance, nullptr);
-    SetWindowLong(hwnd, GWL_EXSTYLE,
-        WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_NOACTIVATE);
-    SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_COLORKEY);
-
-    // Initialize Direct3D
-    if (!CreateDeviceD3D(hwnd))
-    {
-        CleanupDeviceD3D();
-        ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
+    // Create overlay window
+    OverlayWindow overlayWindow;
+    if (!overlayWindow.Create(dpiScale)) {
+        std::cerr << "Failed to create overlay window" << std::endl;
         return 1;
     }
 
-    // Show the window
-    ::ShowWindow(hwnd, SW_SHOWDEFAULT);
-    ::UpdateWindow(hwnd);
+    // Initialize DirectX
+    D3D9Manager d3dManager;
+    if (!d3dManager.Initialize(overlayWindow.GetHandle())) {
+        std::cerr << "Failed to initialize DirectX" << std::endl;
+        overlayWindow.Destroy();
+        return 1;
+    }
 
-    // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    // Initialize ImGui
+    ImGuiManager imguiManager;
+    if (!imguiManager.Initialize(overlayWindow.GetHandle(), d3dManager.GetDevice(), dpiScale)) {
+        std::cerr << "Failed to initialize ImGui" << std::endl;
+        d3dManager.Cleanup();
+        overlayWindow.Destroy();
+        return 1;
+    }
 
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
-    //ImGui::StyleColorsLight();
+    // Initialize ESP renderer
+    ESPRenderer espRenderer;
 
-    // Setup scaling
-    ImGuiStyle& style = ImGui::GetStyle();
-    style.ScaleAllSizes(main_scale);        // Bake a fixed style scale. (until we have a solution for dynamic style scaling, changing this requires resetting Style + calling this again)
-    style.FontScaleDpi = main_scale;        // Set initial font scale. (using io.ConfigDpiScaleFonts=true makes this unnecessary. We leave both here for documentation purpose)
-
-    // Setup Platform/Renderer backends
-    ImGui_ImplWin32_Init(hwnd);
-    ImGui_ImplDX9_Init(g_pd3dDevice);
-
-    // Load Fonts
-    // - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
-    // - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
-    // - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
-    // - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
-    // - Read 'docs/FONTS.md' for more instructions and details. If you like the default font but want it to scale better, consider using the 'ProggyVector' from the same author!
-    // - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
-    //style.FontSizeBase = 20.0f;
-    //io.Fonts->AddFontDefault();
-    //io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf");
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf");
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf");
-    //io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf");
-    //ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf");
-    //IM_ASSERT(font != nullptr);
-
-    // Our state
-    bool mainMenu = true;
-    ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+    // Application state
+    AppState appState;
 
     // Main loop
-    bool done = false;
-
-    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-
-    while (!done)
-    {
-        if (GetAsyncKeyState(VK_END) & 0x8000)
+    bool running = true;
+    while (running) {
+        // Exit check
+        if (GetAsyncKeyState(VK_END) & 0x8000) {
             break;
+        }
 
-        RECT gamePositions = GetWindowRect(gameName);
-        MoveWindow(hwnd, gamePositions.left, gamePositions.top, gamePositions.right - gamePositions.left, gamePositions.bottom - gamePositions.top, true);
-        toggleVisibility(hwnd);
+        // Update overlay position
+        overlayWindow.UpdatePosition(GAME_NAME);
+        overlayWindow.ToggleVisibility();
 
-        // Poll and handle messages (inputs, window resize, etc.)
-        // See the WndProc() function below for our to dispatch events to the Win32 backend.
+        // Handle Windows messages
         MSG msg;
-        while (::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE))
-        {
+        while (::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE)) {
             ::TranslateMessage(&msg);
             ::DispatchMessage(&msg);
-            if (msg.message == WM_QUIT)
-                done = true;
-        }
-        if (done)
-            break;
-
-        // Handle lost D3D9 device
-        if (g_DeviceLost)
-        {
-            HRESULT hr = g_pd3dDevice->TestCooperativeLevel();
-            if (hr == D3DERR_DEVICELOST)
-            {
-                ::Sleep(10);
-                continue;
+            if (msg.message == WM_QUIT) {
+                running = false;
             }
-            if (hr == D3DERR_DEVICENOTRESET)
-                ResetDevice();
-            g_DeviceLost = false;
+        }
+        if (!running) break;
+
+        // Handle device loss
+        d3dManager.HandleDeviceLoss();
+
+        // Begin frame
+        imguiManager.NewFrame();
+
+        // Get screen dimensions
+        ImGuiIO& io = ImGui::GetIO();
+        espRenderer.SetScreenDimensions((int)io.DisplaySize.x, (int)io.DisplaySize.y);
+        espRenderer.SetViewMatrix((float*)appState.viewProjAddress);
+
+        // Render menu
+        RenderMenu(appState, io);
+
+        // Render ESP
+        if (appState.drawSnaplines) {
+            espRenderer.RenderESP();
         }
 
-        // Handle window resize (we don't resize directly in the WM_SIZE handler)
-        if (g_ResizeWidth != 0 && g_ResizeHeight != 0)
-        {
-            g_d3dpp.BackBufferWidth = g_ResizeWidth;
-            g_d3dpp.BackBufferHeight = g_ResizeHeight;
-            g_ResizeWidth = g_ResizeHeight = 0;
-            ResetDevice();
-        }
+        // Apply cheats
+        ApplyGameCheats(appState);
 
-        // Start the Dear ImGui frame
-        ImGui_ImplDX9_NewFrame();
-        ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
-
-        // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        if (mainMenu)
-        {
-            static float f = 0.0f;
-            static int counter = 0;
-
-            ImGui::Begin("Welcome to Internal Base!");                          // Create a window called "Hello, world!" and append into it.
-
-            ImGui::Text("Unlimited Mana");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Unlimited Mana", &unlimitedMana);      // Edit bools storing our window open/close state
-
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
-
-            ImGui::Text("Health: %d", playerHealth);
-            ImGui::Text("Mana: %d", playerMana);
-            ImGui::Text("Stamina: %d", playerStamina);
-
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-
-            static bool drawSnaplines = true;
-            static unsigned long long viewProjAddress = 0;
-
-            ImGui::Checkbox("Draw Snaplines", &drawSnaplines);
-            ImGui::InputScalar("ViewProj Matrix Address", ImGuiDataType_U64, &viewProjAddress, nullptr, nullptr, "%llX", ImGuiInputTextFlags_CharsHexadecimal);
-            ImGui::Text("Tracked entities: %d", GetTrackedEntityCount());
-
-            ImGui::End();
-        }
-
-        // In your render loop, add this after ImGui::NewFrame():
-
-   //     ImDrawList* drawList = ImGui::GetBackgroundDrawList();
-
-   //     // Get view matrix (you'll need to find the correct address for Skyrim SE)
-   //     uintptr_t viewMatrix = 0x7FF72116C3E8; // Your existing matrix address
-   //     float Matrix[16];
-   //     DWORD oldProtect;
-   //     VirtualProtect((LPVOID)viewMatrix, sizeof(Matrix), PAGE_EXECUTE_READWRITE, &oldProtect);
-   //     memcpy(Matrix, (PBYTE*)viewMatrix, sizeof(Matrix));
-   //     VirtualProtect((LPVOID)viewMatrix, sizeof(Matrix), oldProtect, &oldProtect);
-   //     int screenWidth = gamePositions.right - gamePositions.left;
-   //     int screenHeight = gamePositions.bottom - gamePositions.top;
-
-   //     // Draw ESP for all tracked entities
-   //     for (int i = 0; i < 254; i++) {
-			//Player* entity = GetEntityByIndex(i);
-
-   //         if (entity != nullptr) {
-			//	Vector3 worldPos = entity->coordinates;
-   //             Vector2 screenPos;
-   //             if (WorldToScreen(worldPos, screenPos, Matrix, screenWidth, screenHeight)) {
-   //                 // Draw a box around the entity
-   //                 drawList->AddRect(ImVec2(screenPos.x - 20, screenPos.y - 20), ImVec2(screenPos.x + 20, screenPos.y + 20), IM_COL32(255, 0, 0, 255));
-   //                 // Draw a line from the center of the screen to the entity
-   //                 drawList->AddLine(ImVec2(screenWidth / 2, screenHeight), ImVec2(screenPos.x, screenPos.y), IM_COL32(255, 0, 0, 255));
-   //                 drawList->AddText(ImVec2(screenPos.x, screenPos.y - 30), IM_COL32(255, 255, 255, 255), "Entity");
-   //             }
-   //         }
-   //     }
-
-        if (localPlayerPtr) {
-            //godModeEnabled ? localPlayerPtr->Health = 0.0f : NULL;
-            //unlimitedMana ? localPlayerPtr->Mana = 0.0f : NULL;
-            //unlimitedStaminaEnabled ? localPlayerPtr->Stamina = 0.0f : NULL;
-		}
-
-        // Rendering
+        // End frame and render
         ImGui::EndFrame();
-        g_pd3dDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
-        g_pd3dDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-        g_pd3dDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
-        D3DCOLOR clear_col_dx = D3DCOLOR_RGBA((int)(clear_color.x * clear_color.w * 0.0f), (int)(clear_color.y * clear_color.w * 0.0f), (int)(clear_color.z * clear_color.w * 0.0f), (int)(clear_color.w * 0.0f));
-        g_pd3dDevice->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, clear_col_dx, 1.0f, 0);
-        if (g_pd3dDevice->BeginScene() >= 0)
-        {
-            ImGui::Render();
-            ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
-            g_pd3dDevice->EndScene();
+
+        LPDIRECT3DDEVICE9 device = d3dManager.GetDevice();
+        device->SetRenderState(D3DRS_ZENABLE, FALSE);
+        device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+        device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+
+        D3DCOLOR clearColorDx = D3DCOLOR_RGBA(0, 0, 0, 0);
+        device->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, clearColorDx, 1.0f, 0);
+
+        if (device->BeginScene() >= 0) {
+            imguiManager.Render();
+            device->EndScene();
         }
-        HRESULT result = g_pd3dDevice->Present(nullptr, nullptr, nullptr, nullptr);
-        if (result == D3DERR_DEVICELOST)
-            g_DeviceLost = true;
+
+        HRESULT result = device->Present(nullptr, nullptr, nullptr, nullptr);
+        if (result == D3DERR_DEVICELOST) {
+            d3dManager.SetDeviceLost(true);
+        }
+
         Sleep(10);
     }
 
     // Cleanup
-    ImGui_ImplDX9_Shutdown();
-    ImGui_ImplWin32_Shutdown();
-    ImGui::DestroyContext();
+    imguiManager.Shutdown();
+    d3dManager.Cleanup();
+    overlayWindow.Destroy();
 
-    CleanupDeviceD3D();
-    ::DestroyWindow(hwnd);
-    ::UnregisterClassW(wc.lpszClassName, wc.hInstance);
     FreeLibraryAndExitThread(hModule, 0);
-
     return 0;
-}
-
-// Helper functions
-
-bool CreateDeviceD3D(HWND hWnd)
-{
-    if ((g_pD3D = Direct3DCreate9(D3D_SDK_VERSION)) == nullptr)
-        return false;
-
-    // Create the D3DDevice
-    ZeroMemory(&g_d3dpp, sizeof(g_d3dpp));
-    g_d3dpp.Windowed = TRUE;
-    g_d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    g_d3dpp.BackBufferFormat = D3DFMT_UNKNOWN; // Need to use an explicit format with alpha if needing per-pixel alpha composition.
-    g_d3dpp.EnableAutoDepthStencil = TRUE;
-    g_d3dpp.AutoDepthStencilFormat = D3DFMT_D16;
-    g_d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;           // Present with vsync
-    //g_d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;   // Present without vsync, maximum unthrottled framerate
-    if (g_pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &g_d3dpp, &g_pd3dDevice) < 0)
-        return false;
-
-    return true;
-}
-
-void CleanupDeviceD3D()
-{
-    if (g_pd3dDevice) { g_pd3dDevice->Release(); g_pd3dDevice = nullptr; }
-    if (g_pD3D) { g_pD3D->Release(); g_pD3D = nullptr; }
-}
-
-void ResetDevice()
-{
-    ImGui_ImplDX9_InvalidateDeviceObjects();
-    HRESULT hr = g_pd3dDevice->Reset(&g_d3dpp);
-    if (hr == D3DERR_INVALIDCALL)
-        IM_ASSERT(0);
-    ImGui_ImplDX9_CreateDeviceObjects();
-}
-
-// Forward declare message handler from imgui_impl_win32.cpp
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-// Win32 message handler
-// You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-// - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
-// - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
-// Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
-        return true;
-
-    switch (msg)
-    {
-    case WM_SIZE:
-        if (wParam == SIZE_MINIMIZED)
-            return 0;
-        g_ResizeWidth = (UINT)LOWORD(lParam); // Queue resize
-        g_ResizeHeight = (UINT)HIWORD(lParam);
-        return 0;
-    case WM_SYSCOMMAND:
-        if ((wParam & 0xfff0) == SC_KEYMENU) // Disable ALT application menu
-            return 0;
-        break;
-    case WM_DESTROY:
-        ::PostQuitMessage(0);
-        return 0;
-    }
-    return ::DefWindowProcW(hWnd, msg, wParam, lParam);
 }

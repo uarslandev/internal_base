@@ -146,7 +146,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="core\dx11\D3D9Manager.cpp" />
     <ClCompile Include="core\dx11\dx.cpp" />
+    <ClCompile Include="core\dx11\ESPRenderer.cpp" />
+    <ClCompile Include="core\dx11\ImGuiManager.cpp" />
+    <ClCompile Include="core\dx11\OverlayWindow.cpp" />
     <ClCompile Include="core\hooks\hooks.cpp" />
     <ClCompile Include="core\math\math.cpp" />
     <ClCompile Include="core\mem\mem.cpp" />
@@ -161,7 +165,11 @@
     <ClCompile Include="ext\imgui\imgui_widgets.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="core\dx11\D3D9Manager.h" />
     <ClInclude Include="core\dx11\dx.h" />
+    <ClInclude Include="core\dx11\ESPRenderer.h" />
+    <ClInclude Include="core\dx11\ImGuiManager.h" />
+    <ClInclude Include="core\dx11\OverlayWindow.h" />
     <ClInclude Include="core\hooks\hooks.h" />
     <ClInclude Include="core\math\math.h" />
     <ClInclude Include="core\mem\mem.h" />
