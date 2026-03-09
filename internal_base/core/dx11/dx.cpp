@@ -11,14 +11,13 @@
 
 namespace {
     constexpr LPCSTR GAME_NAME = "Skyrim Special Edition";
-    constexpr float VIEW_MATRIX_ADDRESS = 0x7FF72116C3E8;
+    constexpr uintptr_t VIEW_MATRIX_ADDRESS = 0x7FF72116C3E8;
 }
 
 // Application state
 struct AppState {
     bool showMenu = true;
     bool unlimitedMana = false;
-    bool drawSnaplines = true;
     unsigned long long viewProjAddress = VIEW_MATRIX_ADDRESS;
     int playerHealth = 100;
     int playerMana = 100;
@@ -28,34 +27,91 @@ struct AppState {
     ImVec4 clearColor = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
 };
 
-void RenderMenu(AppState& state, const ImGuiIO& io) {
+void RenderESPMenu(ESPConfig& config) {
+    if (ImGui::CollapsingHeader("ESP Settings")) {
+        bool nameEnabled = config.IsFeatureEnabled(ESPFeature::Name);
+        bool snaplineEnabled = config.IsFeatureEnabled(ESPFeature::Snapline);
+        bool box2DEnabled = config.IsFeatureEnabled(ESPFeature::Box2D);
+        bool box3DEnabled = config.IsFeatureEnabled(ESPFeature::Box3D);
+        bool skeletonEnabled = config.IsFeatureEnabled(ESPFeature::Skeleton);
+        bool healthBarEnabled = config.IsFeatureEnabled(ESPFeature::HealthBar);
+        bool distanceEnabled = config.IsFeatureEnabled(ESPFeature::Distance);
+
+        if (ImGui::Checkbox("Show Names", &nameEnabled)) {
+            config.ToggleFeature(ESPFeature::Name);
+        }
+        
+        if (ImGui::Checkbox("Show Snaplines", &snaplineEnabled)) {
+            config.ToggleFeature(ESPFeature::Snapline);
+        }
+        
+        if (ImGui::Checkbox("Show 2D Box", &box2DEnabled)) {
+            config.ToggleFeature(ESPFeature::Box2D);
+        }
+        
+        if (ImGui::Checkbox("Show 3D Box", &box3DEnabled)) {
+            config.ToggleFeature(ESPFeature::Box3D);
+        }
+        
+        if (ImGui::Checkbox("Show Skeleton", &skeletonEnabled)) {
+            config.ToggleFeature(ESPFeature::Skeleton);
+        }
+        
+        if (ImGui::Checkbox("Show Health Bar", &healthBarEnabled)) {
+            config.ToggleFeature(ESPFeature::HealthBar);
+        }
+        
+        if (ImGui::Checkbox("Show Distance", &distanceEnabled)) {
+            config.ToggleFeature(ESPFeature::Distance);
+        }
+
+        ImGui::Separator();
+        ImGui::Text("ESP Customization");
+        
+        ImGui::ColorEdit4("Name Color", (float*)&config.nameColor);
+        ImGui::ColorEdit4("Snapline Color", (float*)&config.snaplineColor);
+        ImGui::ColorEdit4("Box Color", (float*)&config.boxColor);
+        ImGui::ColorEdit4("Skeleton Color", (float*)&config.skeletonColor);
+        
+        ImGui::SliderFloat("Box Width", &config.boxWidth, 20.0f, 100.0f);
+        ImGui::SliderFloat("Box Height", &config.boxHeight, 40.0f, 150.0f);
+        ImGui::SliderFloat("Line Thickness", &config.lineThickness, 0.5f, 5.0f);
+    }
+}
+
+void RenderMenu(AppState& state, ESPConfig& espConfig, const ImGuiIO& io) {
     if (!state.showMenu) return;
 
     ImGui::Begin("Welcome to Internal Base!");
 
-    ImGui::Text("Unlimited Mana");
-    ImGui::Checkbox("Unlimited Mana", &state.unlimitedMana);
+    if (ImGui::CollapsingHeader("Cheats")) {
+        ImGui::Text("Unlimited Mana");
+        ImGui::Checkbox("Unlimited Mana", &state.unlimitedMana);
 
-    ImGui::SliderFloat("float", &state.sliderValue, 0.0f, 1.0f);
-    ImGui::ColorEdit3("clear color", (float*)&state.clearColor);
+        ImGui::SliderFloat("float", &state.sliderValue, 0.0f, 1.0f);
+        ImGui::ColorEdit3("clear color", (float*)&state.clearColor);
 
-    if (ImGui::Button("Button"))
-        state.counter++;
-    ImGui::SameLine();
-    ImGui::Text("counter = %d", state.counter);
+        if (ImGui::Button("Button"))
+            state.counter++;
+        ImGui::SameLine();
+        ImGui::Text("counter = %d", state.counter);
 
-    ImGui::Text("Health: %d", state.playerHealth);
-    ImGui::Text("Mana: %d", state.playerMana);
-    ImGui::Text("Stamina: %d", state.playerStamina);
+        ImGui::Text("Health: %d", state.playerHealth);
+        ImGui::Text("Mana: %d", state.playerMana);
+        ImGui::Text("Stamina: %d", state.playerStamina);
+    }
 
-    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
-        1000.0f / io.Framerate, io.Framerate);
+    RenderESPMenu(espConfig);
 
-    ImGui::Checkbox("Draw Snaplines", &state.drawSnaplines);
-    ImGui::InputScalar("ViewProj Matrix Address", ImGuiDataType_U64,
-        &state.viewProjAddress, nullptr, nullptr, "%llX",
-        ImGuiInputTextFlags_CharsHexadecimal);
-    ImGui::Text("Tracked entities: %d", GetTrackedEntityCount());
+    if (ImGui::CollapsingHeader("Info")) {
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+            1000.0f / io.Framerate, io.Framerate);
+        
+        ImGui::InputScalar("ViewProj Matrix Address", ImGuiDataType_U64,
+            &state.viewProjAddress, nullptr, nullptr, "%llX",
+            ImGuiInputTextFlags_CharsHexadecimal);
+        ImGui::Text("Tracked entities: %d", GetTrackedEntityCount());
+    }
 
     ImGui::End();
 }
@@ -138,12 +194,10 @@ DWORD WINAPI GUI(HMODULE hModule, int, char**) {
         espRenderer.SetViewMatrix((float*)appState.viewProjAddress);
 
         // Render menu
-        RenderMenu(appState, io);
+        RenderMenu(appState, espRenderer.GetConfig(), io);
 
         // Render ESP
-        if (appState.drawSnaplines) {
-            espRenderer.RenderESP();
-        }
+        espRenderer.RenderESP();
 
         // Apply cheats
         ApplyGameCheats(appState);
